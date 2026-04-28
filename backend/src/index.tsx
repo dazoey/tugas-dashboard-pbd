@@ -132,6 +132,20 @@ app.get('/', async (c) => {
   )
 })
 
+// Debug Route: Test Departments
+app.get('/api/test-departments', async (c) => {
+  const { data, error } = await supabase
+    .from('departments')
+    .select('*')
+
+  if (error) {
+    console.error('Supabase Departments Error:', error)
+    return c.json({ success: false, error: error.message }, 500)
+  }
+
+  return c.json({ success: true, count: data.length, data })
+})
+
 // API Endpoint for Frontend Developers
 app.get('/api/employees', async (c) => {
   const page = parseInt(c.req.query('page') || '1')
