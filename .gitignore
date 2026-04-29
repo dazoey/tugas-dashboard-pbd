@@ -1,3 +1,8 @@
 backend/.env
 backend/employees.csv
 backend/employees.sql
+backend/data/departments.csv
+backend/data/dept_emp.csv
+backend/data/dept_manager.csv
+backend/data/salaries.csv
+backend/data/titles.csv
