@@ -3,17 +3,23 @@ import { supabase } from '../lib/supabase'
 
 const salaries = new Hono()
 
-// Ambil top 50 log gaji terbaru beserta nama karyawannya
+// Ambil log gaji terbaru dengan paginasi
 salaries.get('/', async (c) => {
-  const { data: salariesData, error } = await supabase
+  const page = parseInt(c.req.query('page') || '1')
+  const limit = parseInt(c.req.query('limit') || '50')
+  const from = (page - 1) * limit
+  const to = from + limit - 1
+
+  const { data: salariesData, count, error } = await supabase
     .from('salaries')
-    .select('emp_no, salary, from_date, to_date')
-    .limit(50)
+    .select('emp_no, salary, from_date, to_date', { count: 'exact' })
+    .order('from_date', { ascending: false })
+    .range(from, to)
 
   if (error) return c.json({ success: false, error: error.message }, 500)
   
   if (!salariesData || salariesData.length === 0) {
-    return c.json({ success: true, data: [] })
+    return c.json({ success: true, data: [], meta: { total: count || 0, page, limit } })
   }
 
   // Fetch related employees manually to bypass schema cache issues
@@ -38,7 +44,7 @@ salaries.get('/', async (c) => {
     }
   })
 
-  return c.json({ success: true, data: formatted })
+  return c.json({ success: true, data: formatted, meta: { total: count, page, limit } })
 })
 
 export default salaries

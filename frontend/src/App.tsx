@@ -33,7 +33,10 @@ export default function PremiumProfessionalDashboard() {
       const json = await res.json();
       if (json.data) {
         setEmployees(json.data);
-        setMeta({ total: json.total || 0, limit: json.limit || 15 });
+        setMeta({ 
+          total: json.meta?.total || 0, 
+          limit: json.meta?.limit || 15 
+        });
       }
     } catch (e) { console.error("ERR_FETCH_EMP", e); }
     setLoading(false);
@@ -44,8 +47,15 @@ export default function PremiumProfessionalDashboard() {
     try {
       const res = await fetch(`${API_BASE}/employees/${id}`);
       const json = await res.json();
-      if (json.success) setSelectedItem(json.data);
-    } catch (e) { console.error("ERR_FETCH_DETAIL", e); }
+      if (json.success && json.data) {
+        setSelectedItem(json.data);
+      } else {
+        alert("Gagal mengambil detail karyawan: " + (json.error || "Unknown Error"));
+      }
+    } catch (e) { 
+      console.error("ERR_FETCH_DETAIL", e);
+      alert("Terjadi kesalahan koneksi saat mengambil detail.");
+    }
     setLoading(false);
   };
 
@@ -59,22 +69,34 @@ export default function PremiumProfessionalDashboard() {
     setLoading(false);
   };
 
-  const fetchSalaries = async () => {
+  const fetchSalaries = async (p = 1) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/salaries`);
+      const res = await fetch(`${API_BASE}/salaries?page=${p}&limit=${meta.limit}`);
       const json = await res.json();
-      if (json.success) setSalaries(json.data);
+      if (json.data) {
+        setSalaries(json.data);
+        setMeta({ 
+          total: json.meta?.total || 0, 
+          limit: json.meta?.limit || 15 
+        });
+      }
     } catch (e) { console.error("ERR_FETCH_SALARIES", e); }
     setLoading(false);
   };
 
-  const fetchTitles = async () => {
+  const fetchTitles = async (p = 1) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/titles`);
+      const res = await fetch(`${API_BASE}/titles?page=${p}&limit=${meta.limit}`);
       const json = await res.json();
-      if (json.success) setTitles(json.data);
+      if (json.data) {
+        setTitles(json.data);
+        setMeta({ 
+          total: json.meta?.total || 0, 
+          limit: json.meta?.limit || 15 
+        });
+      }
     } catch (e) { console.error("ERR_FETCH_TITLES", e); }
     setLoading(false);
   };
@@ -82,8 +104,8 @@ export default function PremiumProfessionalDashboard() {
   useEffect(() => {
     if (view === 'EMPLOYEES') fetchEmployees(page);
     if (view === 'DEPARTMENTS') fetchDepartments();
-    if (view === 'SALARIES') fetchSalaries();
-    if (view === 'TITLES') fetchTitles();
+    if (view === 'SALARIES') fetchSalaries(page);
+    if (view === 'TITLES') fetchTitles(page);
     if (view === 'MANAGERS') fetchManagers(page);
   }, [view, page]);
 
@@ -138,7 +160,12 @@ export default function PremiumProfessionalDashboard() {
 
   const NavItem = ({ id, icon: Icon, label }) => (
     <button
-      onClick={() => { setView(id); setSelectedItem(null); }}
+      onClick={() => { 
+        setView(id); 
+        setSelectedItem(null); 
+        setPage(1);
+        setMeta({ total: 0, limit: 15 });
+      }}
       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all
         ${view === id 
           ? 'bg-white text-black shadow-lg shadow-white/10' 
@@ -210,14 +237,6 @@ export default function PremiumProfessionalDashboard() {
             <button onClick={() => window.location.reload()} className="p-2 text-zinc-400 hover:text-white transition-colors">
               <RefreshCcw size={20} />
             </button>
-            <div className="h-8 w-[1px] bg-zinc-800 mx-2" />
-            <div className="flex items-center gap-3">
-              <div className="text-right hidden md:block">
-                <div className="text-xs font-bold text-white">ADMIN_ROOT</div>
-                <div className="text-[10px] text-zinc-500">System Administrator</div>
-              </div>
-              <div className="w-10 h-10 bg-gradient-to-tr from-zinc-800 to-zinc-700 rounded-full border border-zinc-700" />
-            </div>
           </div>
         </header>
 
@@ -239,13 +258,12 @@ export default function PremiumProfessionalDashboard() {
                 <StatCard label="System Load" value="Normal" icon={Activity} />
               </div>
               
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 bg-zinc-900/30 border border-zinc-800 rounded-2xl p-8">
+              <div className="grid grid-cols-1 gap-8">
+                <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-8">
                   <div className="flex items-center justify-between mb-8">
                     <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                       <Clock size={20} className="text-zinc-500" /> Recent System Activity
                     </h2>
-                    <button className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">View All</button>
                   </div>
                   <div className="space-y-6">
                     {[
@@ -264,21 +282,6 @@ export default function PremiumProfessionalDashboard() {
                     ))}
                   </div>
                 </div>
-
-                <div className="bg-white rounded-2xl p-8 text-black">
-                  <h2 className="text-xl font-bold mb-6">Quick Actions</h2>
-                  <div className="space-y-3">
-                    <button className="w-full bg-black text-white py-4 rounded-xl font-bold text-sm hover:opacity-90 transition-opacity">
-                      Add New Employee
-                    </button>
-                    <button className="w-full border-2 border-black py-4 rounded-xl font-bold text-sm hover:bg-black hover:text-white transition-all">
-                      Export Report
-                    </button>
-                    <button className="w-full text-zinc-500 py-2 font-bold text-xs hover:text-black transition-colors">
-                      System Settings
-                    </button>
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -295,7 +298,7 @@ export default function PremiumProfessionalDashboard() {
                   </h1>
                   <p className="text-zinc-500 text-sm">Managing enterprise data records.</p>
                 </div>
-                {view === 'EMPLOYEES' && (
+                {(view === 'EMPLOYEES' || view === 'SALARIES' || view === 'TITLES') && (
                   <div className="text-xs font-bold text-zinc-500 uppercase tracking-widest border border-zinc-800 px-3 py-1 rounded-full">
                     Total Records: {meta.total}
                   </div>
@@ -377,7 +380,7 @@ export default function PremiumProfessionalDashboard() {
                   </table>
                 </div>
 
-                {view === 'EMPLOYEES' && (
+                {(view === 'EMPLOYEES' || view === 'SALARIES' || view === 'TITLES') && (
                   <div className="p-4 border-t border-zinc-800 flex justify-between items-center bg-black/20">
                     <button 
                       disabled={page === 1}
@@ -388,8 +391,9 @@ export default function PremiumProfessionalDashboard() {
                     </button>
                     <div className="text-xs font-bold text-zinc-500 uppercase tracking-[0.3em]">Page {page}</div>
                     <button 
+                      disabled={page * meta.limit >= meta.total}
                       onClick={() => setPage(p => p + 1)}
-                      className="p-2 text-zinc-400 hover:text-white transition-colors"
+                      className="p-2 text-zinc-400 hover:text-white disabled:opacity-20 transition-colors"
                     >
                       <ChevronRight size={24} />
                     </button>
@@ -537,8 +541,9 @@ export default function PremiumProfessionalDashboard() {
                   </button>
                   <div className="text-xs font-bold text-zinc-500 uppercase tracking-[0.3em]">Page {page}</div>
                   <button 
+                    disabled={page * meta.limit >= meta.total}
                     onClick={() => setPage(p => p + 1)}
-                    className="p-2 text-zinc-400 hover:text-white transition-colors"
+                    className="p-2 text-zinc-400 hover:text-white disabled:opacity-20 transition-colors"
                   >
                     <ChevronRight size={24} />
                   </button>
@@ -551,12 +556,19 @@ export default function PremiumProfessionalDashboard() {
 
       {/* DETAIL DRAWER */}
       {selectedItem && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 flex justify-end">
-          <div className="w-full max-w-xl bg-zinc-950 h-full border-l border-zinc-800 p-12 overflow-y-auto animate-in slide-in-from-right duration-500 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex justify-end">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" 
+            onClick={() => setSelectedItem(null)}
+          />
+          
+          {/* Drawer Content */}
+          <div className="relative w-full max-w-xl bg-zinc-950 h-full border-l border-zinc-800 p-8 md:p-12 overflow-y-auto shadow-2xl transition-transform transform translate-x-0">
             <div className="flex justify-between items-start mb-16">
               <div>
                 <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mb-4">Employee Dossier // {selectedItem.emp_no}</div>
-                <h2 className="text-5xl font-bold text-white tracking-tighter leading-tight">
+                <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tighter leading-tight">
                   {selectedItem.first_name}<br/>{selectedItem.last_name}
                 </h2>
               </div>
@@ -576,6 +588,20 @@ export default function PremiumProfessionalDashboard() {
                   <p className="text-lg font-medium text-zinc-300">{selectedItem.gender}</p>
                 </div>
               </section>
+
+              {selectedItem.dept_emp && selectedItem.dept_emp.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-6">
+                    <Building2 size={18} className="text-zinc-500" />
+                    <h3 className="text-sm font-bold text-white uppercase tracking-widest">Department Assignment</h3>
+                  </div>
+                  <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl">
+                    <span className="font-bold text-zinc-200">
+                      {selectedItem.dept_emp[0]?.departments?.dept_name}
+                    </span>
+                  </div>
+                </section>
+              )}
 
               <section>
                 <div className="flex items-center gap-2 mb-6">

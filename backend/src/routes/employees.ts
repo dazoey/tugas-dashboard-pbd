@@ -39,25 +39,62 @@ employees.get('/search', async (c) => {
 })
 
 // Ambil detail lengkap satu karyawan (Gaji, Jabatan, Departemen)
+// Dibuat manual fetch karena relasi di database/supabase cache bermasalah
 employees.get('/:id', async (c) => {
   const emp_no = c.req.param('id')
 
+  // 1. Ambil data dasar karyawan
   const { data: employee, error: empErr } = await supabase
     .from('employees')
-    .select(`
-      *,
-      salaries (salary, from_date, to_date),
-      titles (title, from_date, to_date),
-      dept_emp (
-        from_date,
-        departments (dept_name)
-      )
-    `)
+    .select('*')
     .eq('emp_no', emp_no)
     .single()
 
-  if (empErr) return c.json({ success: false, error: empErr.message }, 404)
-  return c.json({ success: true, data: employee })
+  if (empErr || !employee) return c.json({ success: false, error: 'Karyawan tidak ditemukan' }, 404)
+
+  // 2. Ambil riwayat gaji
+  const { data: salaries } = await supabase
+    .from('salaries')
+    .select('salary, from_date, to_date')
+    .eq('emp_no', emp_no)
+    .order('from_date', { ascending: false })
+
+  // 3. Ambil riwayat jabatan
+  const { data: titles } = await supabase
+    .from('titles')
+    .select('title, from_date, to_date')
+    .eq('emp_no', emp_no)
+    .order('from_date', { ascending: false })
+
+  // 4. Ambil departemen (lewat tabel junction dept_emp)
+  const { data: deptEmp } = await supabase
+    .from('dept_emp')
+    .select('dept_no, from_date')
+    .eq('emp_no', emp_no)
+  
+  let departmentsInfo = []
+  if (deptEmp && deptEmp.length > 0) {
+    const deptNos = deptEmp.map(d => d.dept_no)
+    const { data: depts } = await supabase
+      .from('departments')
+      .select('dept_no, dept_name')
+      .in('dept_no', deptNos)
+    
+    departmentsInfo = deptEmp.map(de => ({
+      from_date: de.from_date,
+      departments: depts?.find(d => d.dept_no === de.dept_no)
+    }))
+  }
+
+  // Gabungkan semua data
+  const fullData = {
+    ...employee,
+    salaries: salaries || [],
+    titles: titles || [],
+    dept_emp: departmentsInfo
+  }
+
+  return c.json({ success: true, data: fullData })
 })
 
 export default employees
