@@ -20,6 +20,24 @@ employees.get('/', async (c) => {
   return c.json({ success: true, data, meta: { total: count, page, limit } })
 })
 
+// Pencarian pegawai berdasarkan nama belakang (Tugas B)
+employees.get('/search', async (c) => {
+  const lastName = c.req.query('last_name')
+  
+  if (!lastName) {
+    return c.json({ success: false, error: 'Parameter last_name dibutuhkan' }, 400)
+  }
+
+  const { data, error } = await supabase
+    .from('employees')
+    .select('*')
+    .ilike('last_name', `%${lastName}%`)
+    .limit(50)
+
+  if (error) return c.json({ success: false, error: error.message }, 500)
+  return c.json({ success: true, data })
+})
+
 // Ambil detail lengkap satu karyawan (Gaji, Jabatan, Departemen)
 employees.get('/:id', async (c) => {
   const emp_no = c.req.param('id')

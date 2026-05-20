@@ -18,6 +18,9 @@ export default function PremiumProfessionalDashboard() {
   const [departments, setDepartments] = useState([]);
   const [salaries, setSalaries] = useState([]);
   const [titles, setTitles] = useState([]);
+  const [managers, setManagers] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
+  const [latency, setLatency] = useState<{managers?: number, search?: number}>({});
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ total: 0, limit: 15 });
@@ -81,7 +84,39 @@ export default function PremiumProfessionalDashboard() {
     if (view === 'DEPARTMENTS') fetchDepartments();
     if (view === 'SALARIES') fetchSalaries();
     if (view === 'TITLES') fetchTitles();
+    if (view === 'MANAGERS') fetchManagers(page);
   }, [view, page]);
+
+  const fetchManagers = async (p = 1) => {
+    setLoading(true);
+    const start = performance.now();
+    try {
+      const res = await fetch(`${API_BASE}/managers?page=${p}&limit=${meta.limit}`);
+      const json = await res.json();
+      if (json.data) {
+        setManagers(json.data);
+        setMeta({ total: json.meta?.total || 0, limit: json.meta?.limit || 15 });
+      }
+    } catch (e) { console.error("ERR_FETCH_MANAGERS", e); }
+    const end = performance.now();
+    setLatency(prev => ({ ...prev, managers: Math.round(end - start) }));
+    setLoading(false);
+  };
+
+  const executeSearch = async (term: string) => {
+    if (!term) return;
+    setLoading(true);
+    setView('SEARCH');
+    const start = performance.now();
+    try {
+      const res = await fetch(`${API_BASE}/employees/search?last_name=${term}`);
+      const json = await res.json();
+      if (json.success) setSearchResults(json.data);
+    } catch (e) { console.error("ERR_SEARCH", e); }
+    const end = performance.now();
+    setLatency(prev => ({ ...prev, search: Math.round(end - start) }));
+    setLoading(false);
+  };
 
   // UI Components
   const StatCard = ({ label, value, icon: Icon, trend }) => (
@@ -133,6 +168,7 @@ export default function PremiumProfessionalDashboard() {
           <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest px-4 mb-4">Main Menu</div>
           <NavItem id="OVERVIEW" icon={LayoutDashboard} label="Dashboard" />
           <NavItem id="EMPLOYEES" icon={Users} label="Employees" />
+          <NavItem id="MANAGERS" icon={ShieldCheck} label="Managers Report" />
           <NavItem id="DEPARTMENTS" icon={Building2} label="Departments" />
           
           <div className="pt-8 pb-4">
@@ -161,9 +197,12 @@ export default function PremiumProfessionalDashboard() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
             <input 
               type="text" 
-              placeholder="Search database..." 
+              placeholder="Search database (press Enter)..." 
               className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-zinc-700 transition-all"
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') executeSearch(searchTerm);
+              }}
             />
           </div>
           
@@ -383,6 +422,127 @@ export default function PremiumProfessionalDashboard() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* VIEW: SEARCH RESULTS */}
+          {view === 'SEARCH' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="flex justify-between items-end">
+                <div className="flex flex-col gap-1">
+                  <h1 className="text-3xl font-bold text-white tracking-tight">Search Results</h1>
+                  <p className="text-zinc-500 text-sm">Last name search for: "{searchTerm}"</p>
+                </div>
+                <div className="text-xs font-bold text-emerald-400 uppercase tracking-widest border border-emerald-900/50 bg-emerald-900/20 px-3 py-1 rounded-full">
+                  Query Latency: {latency.search || 0} ms
+                </div>
+              </div>
+              <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="bg-zinc-900/50 border-b border-zinc-800">
+                        <th className="px-6 py-4 font-semibold text-zinc-400">ID</th>
+                        <th className="px-6 py-4 font-semibold text-zinc-400">Identity</th>
+                        <th className="px-6 py-4 font-semibold text-zinc-400">Gender</th>
+                        <th className="px-6 py-4 font-semibold text-zinc-400">Hire Date</th>
+                        <th className="px-6 py-4 font-semibold text-zinc-400 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800/50">
+                      {searchResults.map((emp: any) => (
+                        <tr key={emp.emp_no} className="hover:bg-white/5 transition-colors group">
+                          <td className="px-6 py-4 text-zinc-500 font-medium">{emp.emp_no}</td>
+                          <td className="px-6 py-4 text-white font-medium">{emp.first_name} {emp.last_name}</td>
+                          <td className="px-6 py-4 text-zinc-400">{emp.gender}</td>
+                          <td className="px-6 py-4 text-zinc-400">{emp.hire_date}</td>
+                          <td className="px-6 py-4 text-right">
+                            <button 
+                              onClick={() => fetchEmployeeDetail(emp.emp_no)}
+                              className="text-xs font-bold bg-zinc-800 text-white px-3 py-1 rounded-lg hover:bg-white hover:text-black transition-all"
+                            >Profile</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VIEW: MANAGERS */}
+          {view === 'MANAGERS' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="flex justify-between items-end">
+                <div className="flex flex-col gap-1">
+                  <h1 className="text-3xl font-bold text-white tracking-tight">Managers Report</h1>
+                  <p className="text-zinc-500 text-sm">Historical and current department managers.</p>
+                </div>
+                <div className="flex gap-4 items-center">
+                  <div className="text-xs font-bold text-emerald-400 uppercase tracking-widest border border-emerald-900/50 bg-emerald-900/20 px-3 py-1 rounded-full">
+                    Query Latency: {latency.managers || 0} ms
+                  </div>
+                  <div className="text-xs font-bold text-zinc-500 uppercase tracking-widest border border-zinc-800 px-3 py-1 rounded-full">
+                    Total Records: {meta.total}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="bg-zinc-900/50 border-b border-zinc-800">
+                        <th className="px-6 py-4 font-semibold text-zinc-400">ID</th>
+                        <th className="px-6 py-4 font-semibold text-zinc-400">Manager Identity</th>
+                        <th className="px-6 py-4 font-semibold text-zinc-400">Department</th>
+                        <th className="px-6 py-4 font-semibold text-zinc-400">Tenure Period</th>
+                        <th className="px-6 py-4 font-semibold text-zinc-400 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800/50">
+                      {managers.map((mgr: any, i) => (
+                        <tr key={i} className="hover:bg-white/5 transition-colors group">
+                          <td className="px-6 py-4 text-zinc-500 font-medium">{mgr.emp_no}</td>
+                          <td className="px-6 py-4 text-white font-medium">{mgr.first_name} {mgr.last_name}</td>
+                          <td className="px-6 py-4">
+                            <span className="bg-zinc-800 text-zinc-200 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider">
+                              {mgr.dept_name}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-zinc-400 font-mono text-xs">
+                            {mgr.from_date} <ArrowRight size={10} className="inline mx-1" /> {mgr.to_date === '9999-01-01' ? 'Current' : mgr.to_date}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button 
+                              onClick={() => fetchEmployeeDetail(mgr.emp_no)}
+                              className="text-xs font-bold bg-zinc-800 text-white px-3 py-1 rounded-lg hover:bg-white hover:text-black transition-all"
+                            >Profile</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="p-4 border-t border-zinc-800 flex justify-between items-center bg-black/20">
+                  <button 
+                    disabled={page === 1}
+                    onClick={() => setPage(p => p - 1)}
+                    className="p-2 text-zinc-400 hover:text-white disabled:opacity-20 transition-colors"
+                  >
+                    <ChevronLeft size={24} />
+                  </button>
+                  <div className="text-xs font-bold text-zinc-500 uppercase tracking-[0.3em]">Page {page}</div>
+                  <button 
+                    onClick={() => setPage(p => p + 1)}
+                    className="p-2 text-zinc-400 hover:text-white transition-colors"
+                  >
+                    <ChevronRight size={24} />
+                  </button>
+                </div>
               </div>
             </div>
           )}

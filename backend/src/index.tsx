@@ -6,6 +6,7 @@ import employeeRoutes from './routes/employees'
 import departmentRoutes from './routes/departments'
 import salaryRoutes from './routes/salaries'
 import titleRoutes from './routes/titles'
+import managerRoutes from './routes/managers'
 
 const app = new Hono()
 
@@ -18,6 +19,7 @@ app.route('/api/employees', employeeRoutes)
 app.route('/api/departments', departmentRoutes)
 app.route('/api/salaries', salaryRoutes)
 app.route('/api/titles', titleRoutes)
+app.route('/api/managers', managerRoutes)
 
 // Dashboard HTML (Root)
 app.get('/', (c) => {
